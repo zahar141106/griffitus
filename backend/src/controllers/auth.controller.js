@@ -26,6 +26,20 @@ export async function login(req, res) {
         });
     }
 }
+
+export async function loginConfirm(req, res) {
+    try {
+        const result = await authService.loginConfirm(req.body);
+
+        return res.status(200).json(result);
+
+    } catch (err) {
+        return res.status(400).json({
+            error: err.message
+        });
+    }
+}
+
 import { createVerificationCode } from "../services/verification.service.js";
 
 export async function requestRegister(req, res) {
@@ -132,4 +146,6 @@ export async function confirmRegister(req, res) {
         });
     }
 }
+
+
 
