@@ -42,3 +42,14 @@ model Agent {
 
   createdAt   DateTime  @default(now())
 }
+
+model VerificationCode { 
+  id        String    @id @default(uuid())
+
+  email     String    
+  code      String    
+  type      String    
+
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+}

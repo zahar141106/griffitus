@@ -1,17 +1,13 @@
-import { Router } from "express";
+import express from "express";
+import { getMe } from "../controllers/user.controller.js";
 import authMiddleware from "../middleware/auth.middleware.js";
 
-const router = Router();
+const router = express.Router();
 
 router.get(
-    "/profile",
+    "/me",
     authMiddleware,
-    (req, res) => {
-        res.json({
-            message: "Доступ разрешен",
-            user: req.user
-        });
-    }
+    getMe
 );
 
 export default router;
