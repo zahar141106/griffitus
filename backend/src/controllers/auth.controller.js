@@ -2,6 +2,7 @@ import * as authService from "../services/auth.service.js";
 import prisma from "../prisma.js"
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken"
+import { hashCode } from "../services/verification.service.js"
 
 export async function register(req, res) {
     try {
@@ -45,79 +46,89 @@ export async function requestRegister(req, res) {
 }
 
 export async function confirmRegister(req, res) {
-    try { 
-        const { 
+    try {
+        const {
             email,
             code,
             password
         } = req.body;
 
-        const verification = await prisma.verificationCode.findFirst({
-    where: { 
-        email, 
-        code,
-        type: "register"
-    }
-})
+        const verification =
+            await prisma.verificationCode.findFirst({
+                where: {
+                    email,
+                    type: "register"
+                }
+            });
 
-if (!verification) {
-    return res.status(400).json({
-        error: "Invalid code"
-    })
-}
+        if (!verification) {
+            return res.status(400).json({
+                error: "Verification code not found"
+            });
+        }
 
-if (verification.expiresAt < new Date()) { 
-    return res.status(400).json({
-        error: "Code expired"
-    })
-}
+        if (verification.expiresAt < new Date()) {
+            await prisma.verificationCode.delete({
+                where: {
+                    id: verification.id
+                }
+            });
 
-const exists = await prisma.user.findUnique({
-    where: { 
-        email
-    }
-});
+            return res.status(400).json({
+                error: "Code expired"
+            });
+        }
 
-if (exists) {
-    return res.status(400).json({
-        error: "User already exists"
-    })
-}const passwordHash = await bcrypt.hash(password, 10);
+        const isValid =
+            hashCode(code) === verification.codeHash;
 
-const user = await prisma.user.create({
-    data: {
-        email,
-        passwordHash
-    }
-});
+        if (!isValid) {
+            return res.status(400).json({
+                error: "Invalid code"
+            });
+        }
 
-await prisma.verificationCode.delete({
-    where: {
-        id: verification.id
-    }
-});
+        const exists =
+            await prisma.user.findUnique({
+                where: {
+                    email
+                }
+            });
 
-const token = jwt.sign(
-    {
-        id: user.id
-    },
-    process.env.JWT_SECRET,
-    {
-        expiresIn: "30d"
-    }
-);
+        if (exists) {
+            return res.status(400).json({
+                error: "User already exists"
+            });
+        }
 
-return res.status(201).json({
-    message: "Registration successful",
-    token,
-    user: {
-        id: user.id,
-        email: user.email
-    }
-});
-    } catch (error) { 
-        res.status(500).json({
-            error:error.message
+        const passwordHash =
+            await bcrypt.hash(password, 10);
+
+        const user =
+            await prisma.user.create({
+                data: {
+                    email,
+                    passwordHash
+                }
+            });
+
+        await prisma.verificationCode.delete({
+            where: {
+                id: verification.id
+            }
+        });
+
+        return res.status(201).json({
+            message: "User created successfully",
+            user: {
+                id: user.id,
+                email: user.email
+            }
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            error: error.message
         });
     }
 }

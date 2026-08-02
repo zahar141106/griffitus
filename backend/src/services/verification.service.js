@@ -1,11 +1,17 @@
 import prisma from "../prisma.js";
+import { sendVerificationEmail } from "./mail.service.js";
+import crypto from "crypto";
 
-function generateCode() {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+export function hashCode(code) {
+    return crypto 
+        .createHash("sha256")
+        .update(code)
+        .digest("hex");
 }
 
 export async function createVerificationCode(email, type) {
-    const code = generateCode();
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const codeHash = hashCode(code);
 
     await prisma.verificationCode.deleteMany({
         where: {
@@ -18,10 +24,12 @@ export async function createVerificationCode(email, type) {
         data: {
             email,
             type,
-            code,
+            codeHash,
             expiresAt: new Date(Date.now() + 10 * 60 * 1000),
         },
     });
+
+    await sendVerificationEmail(email, code);
 
     console.log(`
 ==============================
@@ -32,5 +40,5 @@ Code: ${code}
 ==============================
 `);
 
-    return code;
+    return true; 
 }

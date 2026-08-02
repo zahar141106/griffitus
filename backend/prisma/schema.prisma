@@ -47,7 +47,7 @@ model VerificationCode {
   id        String    @id @default(uuid())
 
   email     String    
-  code      String    
+  codeHash  String    
   type      String    
 
   expiresAt   DateTime
