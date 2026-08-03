@@ -49,6 +49,7 @@ model VerificationCode {
   email     String    
   codeHash  String    
   type      String    
+  attempts  Int       @default(0)
 
   expiresAt   DateTime
   createdAt   DateTime @default(now())

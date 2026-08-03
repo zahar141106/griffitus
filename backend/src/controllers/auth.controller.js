@@ -2,7 +2,7 @@ import * as authService from "../services/auth.service.js";
 import prisma from "../prisma.js"
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken"
-import { hashCode } from "../services/verification.service.js"
+import { hashCode, createVerificationCode } from "../services/verification.service.js"
 
 export async function register(req, res) {
     try {
@@ -40,8 +40,6 @@ export async function loginConfirm(req, res) {
     }
 }
 
-import { createVerificationCode } from "../services/verification.service.js";
-
 export async function requestRegister(req, res) {
     try {
         const { email } = req.body;
@@ -59,93 +57,99 @@ export async function requestRegister(req, res) {
     }
 }
 
-export async function confirmRegister(req, res) {
+export async function requestPasswordReset(req, res) {
     try {
-        const {
-            email,
-            code,
-            password
-        } = req.body;
+        const { email } = req.body;
 
-        const verification =
-            await prisma.verificationCode.findFirst({
-                where: {
-                    email,
-                    type: "register"
-                }
-            });
+        await createVerificationCode(email, "password_reset");
 
-        if (!verification) {
-            return res.status(400).json({
-                error: "Verification code not found"
-            });
-        }
-
-        if (verification.expiresAt < new Date()) {
-            await prisma.verificationCode.delete({
-                where: {
-                    id: verification.id
-                }
-            });
-
-            return res.status(400).json({
-                error: "Code expired"
-            });
-        }
-
-        const isValid =
-            hashCode(code) === verification.codeHash;
-
-        if (!isValid) {
-            return res.status(400).json({
-                error: "Invalid code"
-            });
-        }
-
-        const exists =
-            await prisma.user.findUnique({
-                where: {
-                    email
-                }
-            });
-
-        if (exists) {
-            return res.status(400).json({
-                error: "User already exists"
-            });
-        }
-
-        const passwordHash =
-            await bcrypt.hash(password, 10);
-
-        const user =
-            await prisma.user.create({
-                data: {
-                    email,
-                    passwordHash
-                }
-            });
-
-        await prisma.verificationCode.delete({
-            where: {
-                id: verification.id
-            }
-        });
-
-        return res.status(201).json({
-            message: "User created successfully",
-            user: {
-                id: user.id,
-                email: user.email
-            }
+        return res.json({
+            message: "Password reset code sent"
         });
 
     } catch (error) {
+
         return res.status(500).json({
             error: error.message
         });
+
     }
 }
 
+export async function resetPassword(req, res) {
+
+    try {
+
+        const result =
+            await authService.resetPassword(req.body);
+
+        return res.status(200).json(result);
+
+    } catch (error) {
+
+        return res.status(400).json({
+            error: error.message
+        });
+
+    }
+
+}
+
+export async function confirmRegister(req, res) {
+
+    try {
+
+        const result =
+            await authService.confirmRegister(
+                req.body
+            );
+
+
+        return res.status(201).json(result);
+
+
+    } catch(error) {
+
+        return res.status(400).json({
+            error: error.message
+        });
+
+    }
+}
+export async function resendCode(req, res) {
+    try {
+
+        const {
+            email,
+            type
+        } = req.body;
+
+
+        if (!email || !type) {
+            return res.status(400).json({
+                error: "Email and type are required"
+            });
+        }
+
+
+        await createVerificationCode(
+            email,
+            type
+        );
+
+
+        return res.json({
+            message: "Verification code sent"
+        });
+
+
+    } catch (error) {
+
+        return res.status(400).json({
+            error: error.message
+        });
+
+    }
+}
 
 
